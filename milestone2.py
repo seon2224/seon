@@ -1,94 +1,216 @@
+# ==========================================
+# MILESTONE 2 - EDA & FEATURE ENGINEERING
+# ==========================================
+
 import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-# 1. Load the dataset
-df = pd.read_csv('netflix_titles_cleaned.csv')
+# Load Dataset
+df = pd.read_csv("netflix_titles_cleaned.csv")
 
-# --- PART 1: EXPLORATORY DATA ANALYSIS (EDA) ---
+print(df.head())
+print(df.info())
 
-# Step 1: Content Growth Over Time
-growth = df.groupby('release_year')['show_id'].count()
-plt.figure(figsize=(10, 6))
-growth.plot(kind='line', marker='o')
+# ==========================================
+# STEP 1: CONTENT GROWTH OVER TIME
+# ==========================================
+
+plt.figure(figsize=(12,6))
+
+content_growth = df['release_year'].value_counts().sort_index()
+
+sns.lineplot(
+    x=content_growth.index,
+    y=content_growth.values,
+    marker='o'
+)
+
 plt.title('Netflix Content Growth Over Time')
 plt.xlabel('Release Year')
 plt.ylabel('Number of Titles')
-plt.grid(True)
-plt.savefig('content_growth.png')
+plt.show()
 
-# Step 2: Movies vs TV Shows
-type_counts = df['type'].value_counts()
-plt.figure(figsize=(8, 6))
-type_counts.plot(kind='bar', color=['skyblue', 'salmon'])
+
+# ==========================================
+# STEP 2: MOVIES VS TV SHOWS
+# ==========================================
+
+plt.figure(figsize=(6,5))
+
+sns.countplot(
+    data=df,
+    x='type'
+)
+
 plt.title('Movies vs TV Shows')
-plt.xlabel('Type')
+plt.xlabel('Content Type')
 plt.ylabel('Count')
-plt.savefig('content_type.png')
+plt.show()
 
-# Step 3: Top 10 Genres
-# Split listed_in by ', ' and flatten the list
+
+# ==========================================
+# STEP 3: TOP 10 GENRES
+# ==========================================
+
 genres = df['listed_in'].str.split(', ').explode()
+
 top_genres = genres.value_counts().head(10)
-plt.figure(figsize=(10, 6))
-top_genres.plot(kind='bar', color='green')
-plt.title('Top 10 Genres')
-plt.xlabel('Genre')
-plt.ylabel('Count')
-plt.savefig('top_genres.png')
 
-# Step 4: Rating Distribution
-rating_counts = df['rating'].value_counts()
-plt.figure(figsize=(10, 6))
-rating_counts.plot(kind='bar', color='purple')
-plt.title('Rating Distribution')
-plt.xlabel('Rating')
-plt.ylabel('Count')
-plt.savefig('rating_distribution.png')
+plt.figure(figsize=(10,6))
 
-# Step 5: Top 10 Countries
-# Filter out 'Unknown' and split by ', '
-countries = df[df['country'] != 'Unknown']['country'].str.split(', ').explode()
+sns.barplot(
+    x=top_genres.values,
+    y=top_genres.index
+)
+
+plt.title('Top 10 Genres on Netflix')
+plt.xlabel('Count')
+plt.ylabel('Genre')
+plt.show()
+
+
+# ==========================================
+# STEP 4: RATING DISTRIBUTION
+# ==========================================
+
+plt.figure(figsize=(10,6))
+
+sns.countplot(
+    data=df,
+    y='rating',
+    order=df['rating'].value_counts().index
+)
+
+plt.title('Content Rating Distribution')
+plt.xlabel('Count')
+plt.ylabel('Rating')
+plt.show()
+
+
+# ==========================================
+# STEP 5: TOP COUNTRIES
+# ==========================================
+
+countries = df['country'].dropna().str.split(', ').explode()
+
 top_countries = countries.value_counts().head(10)
-plt.figure(figsize=(10, 6))
-top_countries.plot(kind='bar', color='orange')
-plt.title('Top 10 Countries')
-plt.xlabel('Country')
-plt.ylabel('Count')
-plt.savefig('top_countries.png')
 
-# Step 6: Duration Analysis (Movies Only)
-movies_df = df[df['type'] == 'Movie'].copy()
-# Extract numeric duration (remove ' min')
-movies_df['duration_num'] = movies_df['duration'].str.extract('(\d+)').astype(float)
+plt.figure(figsize=(10,6))
+
+sns.barplot(
+    x=top_countries.values,
+    y=top_countries.index
+)
+
+plt.title('Top 10 Contributing Countries')
+plt.xlabel('Number of Titles')
+plt.ylabel('Country')
+plt.show()
+
+
+# ==========================================
+# STEP 6: DURATION ANALYSIS
+# ==========================================
+
+# Extract numeric duration
+
+df['duration_num'] = df['duration'].str.extract('(\d+)')
+df['duration_num'] = pd.to_numeric(df['duration_num'])
 
 # Histogram
-plt.figure(figsize=(10, 6))
-sns.histplot(movies_df['duration_num'], kde=True, bins=30)
-plt.title('Movie Duration Distribution')
-plt.xlabel('Duration (min)')
-plt.savefig('movie_duration_hist.png')
+
+plt.figure(figsize=(10,6))
+
+sns.histplot(
+    df['duration_num'].dropna(),
+    bins=30,
+    kde=True
+)
+
+plt.title('Duration Distribution')
+plt.xlabel('Duration')
+plt.ylabel('Frequency')
+plt.show()
 
 # Boxplot
-plt.figure(figsize=(10, 6))
-sns.boxplot(x=movies_df['duration_num'])
-plt.title('Movie Duration Boxplot')
-plt.xlabel('Duration (min)')
-plt.savefig('movie_duration_box.png')
 
-# --- PART 2: FEATURE ENGINEERING ---
+plt.figure(figsize=(10,2))
 
-# Step 7: Create Content Length Category
-def categorize_duration(duration):
-    if duration < 60:
+sns.boxplot(
+    x=df['duration_num']
+)
+
+plt.title('Duration Boxplot')
+plt.show()
+
+
+# ==========================================
+# FEATURE ENGINEERING
+# ==========================================
+
+# STEP 7: CONTENT LENGTH CATEGORY
+
+def categorize_duration(x):
+    if pd.isna(x):
+        return np.nan
+    elif x < 60:
         return 'Short'
-    elif 60 <= duration <= 120:
+    elif x <= 120:
         return 'Medium'
     else:
         return 'Long'
 
-# Apply the function
-movies_df['duration_category'] = movies_df['duration_num'].apply(categorize_duration)
+df['content_length_category'] = df['duration_num'].apply(categorize_duration)
 
-# Save the final dataset with new feature
-movies_df.to_csv('netflix_movies_with_features.csv', index=False)
+print("\nContent Length Category:")
+print(df['content_length_category'].value_counts())
+
+
+# ==========================================
+# STEP 8: RELEASE DECADE
+# ==========================================
+
+df['release_decade'] = (df['release_year'] // 10) * 10
+
+print("\nRelease Decades:")
+print(df['release_decade'].value_counts())
+
+
+# ==========================================
+# STEP 9: NUMBER OF GENRES
+# ==========================================
+
+df['genre_count'] = df['listed_in'].apply(
+    lambda x: len(str(x).split(','))
+)
+
+print("\nGenre Count:")
+print(df['genre_count'].head())
+
+
+# ==========================================
+# STEP 10: MOVIE / TV SHOW ENCODING
+# ==========================================
+
+df['type_encoded'] = df['type'].map({
+    'Movie': 0,
+    'TV Show': 1
+})
+
+print("\nEncoded Type:")
+print(df[['type','type_encoded']].head())
+
+
+# ==========================================
+# SAVE FEATURE ENGINEERED DATASET
+# ==========================================
+
+df.to_csv(
+    'netflix_feature_engineered.csv',
+    index=False
+)
+
+print("\nMilestone 2 Completed Successfully!")
+print("Feature engineered dataset saved.")

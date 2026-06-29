@@ -73,3 +73,4 @@ def clean_and_normalize_netflix_data(input_csv):
 if __name__ == '__main__':
     # Make sure 'netflix_titles.csv' is present in your active workspace folder
     clean_and_normalize_netflix_data('netflix_titles.csv')
+    
